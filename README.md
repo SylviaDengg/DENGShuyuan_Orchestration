@@ -25,6 +25,10 @@ Orchestration in this project refers to coordinating multiple crews into a singl
    ```bash
    python pipeline.py "Paste a topic, claim, or short article here"
    ```
+Accepted input:
+- claim example: "Coffee cures cancer"
+- topic example: "AI regulation in US tech companies"
+- short article/paragraph (1–5 sentences recommended)
 
 ## Checkpoint and Resume
 - Completed stage outputs are saved to `checkpoint.json`
