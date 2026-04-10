@@ -1,6 +1,9 @@
 # Mini-Assignment 4 Orchestration Pipeline
 
-This project implements a three-crew sequential CrewAI pipeline for a news or topic credibility workflow.
+This project implements a three-crew sequential CrewAI pipeline to evaluate the credibility of a topic, claim, or short article and produce a concise executive report.
+
+## Orchestration
+Orchestration in this project refers to coordinating multiple crews into a single workflow. The pipeline runs three crews sequentially (intake → evaluation → reporting), where each stage’s output is passed as input to the next. The orchestrator in `pipeline.py` manages execution order, handles failures with retry logic (up to 3 attempts with backoff), saves intermediate results to `checkpoint.json`, and supports resume by skipping completed stages on rerun. This ensures the pipeline is reliable, stateful, and efficient.
 
 ## Pipeline Stages
 - `intake`: turns the raw topic, article, or claim text into a structured intake package
@@ -25,7 +28,7 @@ This project implements a three-crew sequential CrewAI pipeline for a news or to
 
 ## Checkpoint and Resume
 - Completed stage outputs are saved to `checkpoint.json`
-- On rerun, any completed stage is skipped automatically
+- On rerun, completed stages are skipped only when the saved checkpoint claim matches the current input claim
 - If a stage fails, earlier successful stages remain saved
 - Retry logic uses up to 3 attempts with delays of 1, 2, and 4 seconds
 

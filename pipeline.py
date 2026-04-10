@@ -10,6 +10,8 @@ from crews import get_evaluation_crew, get_intake_crew, get_reporting_crew
 CHECKPOINT_PATH = Path("checkpoint.json")
 MAX_RETRIES = 3
 BASE_DELAY_SECONDS = 1
+CHECKPOINT_INPUT_KEY = "input_claim"
+STAGE_NAMES = ("intake", "evaluation", "reporting")
 
 
 def log(message: str) -> None:
@@ -82,15 +84,35 @@ class OrchestrationPipeline:
 
     def run(self, user_input: str) -> Dict[str, str]:
         checkpoint = load_checkpoint(self.checkpoint_path)
-        results: Dict[str, str] = dict(checkpoint)
+        results: Dict[str, str] = {}
 
         log("[PIPELINE] starting credibility pipeline")
         log(f"[CLAIM] {user_input}")
-        if checkpoint:
-            completed = ", ".join(checkpoint.keys())
-            log(f"[CHECKPOINT] loaded completed stages: {completed}")
+        checkpoint_claim = checkpoint.get(CHECKPOINT_INPUT_KEY, "")
+        completed_stage_names = [
+            stage_name for stage_name in STAGE_NAMES if stage_name in checkpoint
+        ]
+
+        if checkpoint and checkpoint_claim == user_input:
+            if completed_stage_names:
+                completed = ", ".join(completed_stage_names)
+                log(f"[CHECKPOINT] loaded completed stages for matching claim: {completed}")
+                for stage_name in completed_stage_names:
+                    results[stage_name] = checkpoint[stage_name]
+            else:
+                log("[CHECKPOINT] found matching claim but no completed stages")
+        elif checkpoint and checkpoint_claim:
+            log("[CHECKPOINT] saved claim does not match current input; starting fresh run")
+            checkpoint = {CHECKPOINT_INPUT_KEY: user_input}
+            save_checkpoint(self.checkpoint_path, checkpoint)
+        elif checkpoint:
+            log("[CHECKPOINT] legacy checkpoint missing input claim; starting fresh run")
+            checkpoint = {CHECKPOINT_INPUT_KEY: user_input}
+            save_checkpoint(self.checkpoint_path, checkpoint)
         else:
             log("[CHECKPOINT] no existing checkpoint found")
+            checkpoint = {CHECKPOINT_INPUT_KEY: user_input}
+            save_checkpoint(self.checkpoint_path, checkpoint)
 
         stages: List[Dict[str, Any]] = [
             {
@@ -118,9 +140,8 @@ class OrchestrationPipeline:
         for stage in stages:
             stage_name = stage["name"]
 
-            if stage_name in checkpoint:
+            if stage_name in results:
                 log(f"[SKIP] {stage_name} already completed")
-                results[stage_name] = checkpoint[stage_name]
                 continue
 
             stage_inputs = stage["build_inputs"](results)
